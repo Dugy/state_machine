@@ -1,0 +1,3 @@
+[submodule "looping_thread"]
+	path = looping_thread
+	url = https://github.com/Dugy/looping_thread.git
