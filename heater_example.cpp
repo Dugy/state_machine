@@ -3,6 +3,8 @@
 
 int main()
 {
+
+	// Declare input and output structures
 	struct Input {
 		float temperature;
 	};
@@ -10,8 +12,7 @@ int main()
 		float power;
 	};
 	
-	StateMachineManager<Input, Output> manager(Input{ 20 }, Output{ 0 }, 100);
-	
+	// Declare a PID controller class
 	class TemperatureController : public TimedObject<Input, Output> {
 		const float proportional_ = 0.3f;
 		const float integral_ = 0.02f;
@@ -37,6 +38,7 @@ int main()
 		float desired_ = 0;
 	};
 	
+	// Declare states for a class that would control the heating and cooling process
 	enum TemperatureProgrammerState {
 		STARTING = 0,
 		HEATING,
@@ -44,6 +46,8 @@ int main()
 		COOLING,
 		COOL
 	};
+
+	// Declare the class for controlling the process, using the states set above
 	class TemperatureProgrammer : public StateMachine<Input, Output, TemperatureProgrammerState> {
 		float ramp_ = 0.005f;
 		float max_ = 100.0f;
@@ -94,19 +98,30 @@ int main()
 		}
 	};
 	
+	// Create the manager that controls all the state machines, initialise the Input/Output structures, set the minimal period to 100 ms
+	// It starts in paused state
+	StateMachineManager<Input, Output> manager(Input{ 20 }, Output{ 0 }, 100);
+	
+	// Create instances of the classes and insert them into the manager
+	// It can be done only while the manager is paused
 	std::shared_ptr<TemperatureController> controller = std::make_shared<TemperatureController>();
 	manager.addTimedObject(200, controller);
 	manager.addTimedObject(500, std::make_shared<TemperatureProgrammer>(controller));
+
+	// Start the manager, this has to be done from the thread that created it
 	manager.unpause();
 	
-	for (int i = 0; i < 1000; i++) {
+	// Periodic reading of output and setting of input for the next turn
+	for (int i = 0; i < 400; i++) {
 		std::this_thread::sleep_for (std::chrono::milliseconds(100));
-		auto out = manager.output();
+		auto out = manager.output(); // These two operations are thread-safe because of locks
 		auto in = manager.input();
 		in->temperature = 20 + (in->temperature - 20) * 0.95f + out->power;
 		std::cout << "Power: " << out->power << " temperature " << in->temperature << " desired " << controller->desired_ << std::endl;
+		// Destroying the returned structures unlocks the structures
 	}
 	
+	// When the manager falls out of scope, it is safely destroyed
 	return 0;
 }
 

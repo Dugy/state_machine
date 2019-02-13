@@ -174,6 +174,10 @@ class ProtectedReturn {
 		content_(content), onRelease_(onRelease)
 	{
 	}
+	template<typename T2>
+	ProtectedReturn(ProtectedReturn<T2>&) = delete;
+	template<typename T2>
+	ProtectedReturn<T>& operator=(ProtectedReturn<T2>&) = delete;
 public:
 	/*!
 	* \brief Destructor, stops deferring the ticks
