@@ -15,6 +15,9 @@
 * the type describing its state (meant to be an enum) as the third template argument.
 */
 
+#ifndef STATE_MACHINE_H
+#define STATE_MACHINE_H
+
 #include "looping_thread/looping_thread.hpp"
 #include <vector>
 
@@ -356,3 +359,4 @@ public:
 		return ProtectedReturn<Output>(&output_, [lock]() { /* Keep a copy of the mutex pointer */ });
 	}
 };
+#endif // STATE_MACHINE_H
