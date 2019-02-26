@@ -43,7 +43,7 @@ public:
 	{
 		return timeIncrease_;
 	}
-
+	
 	/*!
 	* \brief Returns the current time, kept at once value during the whole tick
 	*
@@ -62,26 +62,44 @@ public:
 		}
 		template<typename In, typename Out> friend class TimedObject;
 	public:
-
+	
+		/*!
+		* \brief Default constructor, default constructed or disabled timer always returns 0 as time
+		*/
+		Timer() : parent_(nullptr)
+		{
+		}
+		
 		/*!
 		* \brief Returns the time since this timer was created
 		*
 		* \return The time in milliseconds
 		*/
-		long long getTime()
+		long long time()
 		{
 			if (!parent_) return 0;
 			return parent_->timeOfLastFreeze_ - since_;
 		}
-
+		
 		/*!
-		* \brief Default constructor, default constructed timer always returns 0 as time
+		* \brief Returns uf the time is active, that is, wasn't default-constructed or disabled
+		*
+		* \return If it is enabled
 		*/
-		Timer() : parent_(nullptr)
+		bool active()
 		{
+			return (parent_ != nullptr);
+		}
+		
+		/*!
+		* \brief Disables the timer so that it will not be active and always return time 0
+		*/
+		void deactivate()
+		{
+			parent_ = nullptr;
 		}
 	};
-
+	
 	/*!
 	* \brief Returns a timer measuring time from the moment it was returned
 	*
@@ -122,8 +140,8 @@ class StateMachine : public TimedObject<Input, Output> {
 			stateChanged_ = StateChangedType::BEFORE;
 	}
 	State state_;
+	
 protected:
-
 	/*!
 	* \brief Returns the current state of the automaton, the state's type is set as the third template argument
 	*
@@ -135,7 +153,7 @@ protected:
 	{
 		return state_;
 	}
-
+	
 	/*!
 	* \brief Changes the state of the automaton
 	*
@@ -147,7 +165,7 @@ protected:
 		stateChanged_ = StateChangedType::THIS_TICK;
 		stateTimer_ = 0;
 	}
-
+	
 	/*!
 	* \brief Returns the time since the last change of state
 	*
@@ -157,7 +175,7 @@ protected:
 	{
 		return stateTimer_;
 	}
-
+	
 	/*!
 	* \brief Returns true if the automaton is running its first tick in the current state
 	*
@@ -178,9 +196,9 @@ class ProtectedReturn {
 	{
 	}
 	template<typename T2>
-	ProtectedReturn(ProtectedReturn<T2>&) = delete;
+	ProtectedReturn(ProtectedReturn<T2>& ) = delete;
 	template<typename T2>
-	ProtectedReturn<T>& operator=(ProtectedReturn<T2>&) = delete;
+	ProtectedReturn<T>& operator=(ProtectedReturn<T2>& ) = delete;
 public:
 	/*!
 	* \brief Destructor, stops deferring the ticks
@@ -189,7 +207,7 @@ public:
 	{
 		onRelease_();
 	}
-
+	
 	/*!
 	* \brief Gives access to the structure
 	*/
@@ -197,7 +215,7 @@ public:
 	{
 		return content_;
 	}
-
+	
 	/*!
 	* \brief Gives access to the const structure
 	*/
@@ -205,7 +223,7 @@ public:
 	{
 		return content_;
 	}
-
+	
 	/*!
 	* \brief Gives access to the structure
 	*
@@ -215,7 +233,7 @@ public:
 	{
 		return content_;
 	}
-
+	
 	/*!
 	* \brief Gives access to the structure
 	*
@@ -261,7 +279,7 @@ class StateMachineManager {
 		}
 	}
 public:
-	
+
 	/*!
 	* \brief The constructor, leaves the thread in a paused state
 	*
@@ -345,7 +363,7 @@ public:
 	ProtectedReturn<Input> input()
 	{
 		std::shared_ptr<std::unique_lock<std::mutex>> lock = std::make_unique<std::unique_lock<std::mutex>>(inputMutex_);
-		return ProtectedReturn<Input>(&input_, [lock]() { /* Keep a copy of the mutex pointer */ });
+		return ProtectedReturn<Input>(&input_, [lock] () { /* Keep a copy of the mutex pointer */ });
 	}
 	
 	/*!
@@ -356,7 +374,7 @@ public:
 	const ProtectedReturn<Output> output()
 	{
 		std::shared_ptr<std::unique_lock<std::mutex>> lock = std::make_unique<std::unique_lock<std::mutex>>(outputMutex_);
-		return ProtectedReturn<Output>(&output_, [lock]() { /* Keep a copy of the mutex pointer */ });
+		return ProtectedReturn<Output>(&output_, [lock] () { /* Keep a copy of the mutex pointer */ });
 	}
 };
 #endif // STATE_MACHINE_H

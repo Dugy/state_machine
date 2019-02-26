@@ -14,7 +14,7 @@ Most classes expect two template arguments, one for the input structure given to
 
 A basic object that can be inserted into the system, it only has the basic interface providing time, input and output. Overload its `tick(const Input&, Output&)` method for the loop, it doesn't need to be initalised. Use `StateMachine` for more features.
 
-It provides a `makeTimer()` method that returns a timer that has a `getTime()` method to get the time from its creation in milliseconds. Its other methods are `lastPeriod()` that returns the time since last tick in milliseconds and `frameTime()` that returns the time of that tick.
+It provides a `makeTimer()` method that returns a timer that has a `time()` method to get the time from its creation in milliseconds and always returns time 0 if default constructed or its method `deactivate()` was called (this can be checked using its `active()` method). Its other methods are `lastPeriod()` that returns the time since last tick in milliseconds and `frameTime()` that returns the time of that tick.
 
 ### `template<typename Input, typename Output, typename State> class StateMachine`
 
