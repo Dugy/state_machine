@@ -123,7 +123,7 @@ public:
 
 template<typename Input, typename Output, typename State>
 class StateMachine : public TimedObject<Input, Output> {
-	long long stateTimer_;
+	long long stateTimer_ = 0;
 	enum class StateChangedType : std::uint8_t  {
 		THIS_TICK,
 		PREVIOUS_TICK,
@@ -161,6 +161,7 @@ protected:
 	*/
 	void state(State newState)
 	{
+		if (state_ == newState) return;
 		state_ = newState;
 		stateChanged_ = StateChangedType::THIS_TICK;
 		stateTimer_ = 0;
