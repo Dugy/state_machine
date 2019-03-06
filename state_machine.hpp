@@ -232,7 +232,7 @@ public:
 	*/
 	T& operator*()
 	{
-		return content_;
+		return *content_;
 	}
 	
 	/*!
@@ -242,7 +242,7 @@ public:
 	*/
 	const T& operator*() const
 	{
-		return content_;
+		return *content_;
 	}
 	
 	template<typename In, typename Out> friend class StateMachineManager;
@@ -259,10 +259,14 @@ class StateMachineManager {
 	int paused_;
 	std::mutex inputMutex_;
 	std::mutex outputMutex_;
+	std::function<void(Input&)> inputTrigger_;
+	std::function<void(const Output&)> outputTrigger_;
 	void tick()
 	{
 		Input input;
 		Output output = output_; // It's const in the other thread
+		if (inputTrigger_)
+			inputTrigger_(input_);
 		{
 			std::unique_lock<std::mutex> lock(inputMutex_);
 			input = input_;
@@ -278,6 +282,8 @@ class StateMachineManager {
 			std::unique_lock<std::mutex> lock(outputMutex_);
 			output_ = output;
 		}
+		if (outputTrigger_)
+			outputTrigger_(output_);
 	}
 public:
 
@@ -376,6 +382,32 @@ public:
 	{
 		std::shared_ptr<std::unique_lock<std::mutex>> lock = std::make_unique<std::unique_lock<std::mutex>>(outputMutex_);
 		return ProtectedReturn<Output>(&output_, [lock] () { /* Keep a copy of the mutex pointer */ });
+	}
+	
+	/*!
+	* \brief Sets input trigger, a function that is called before every execution. Its intended use is to have it load the
+	* parametres asynchronously from someplace
+	*
+	* \param The function, taking a reference to the input as parameter
+	*
+	* \note Race conditions may occur if the execution is not paused, the trigger itself is run on the same thread as the loop
+	*/
+	void setInputTrigger(std::function<void(Input&)> trigger)
+	{
+		inputTrigger_ = trigger;
+	}
+	
+	/*!
+	* \brief Sets output trigger, a function that is called after every execution. Its intended use is to have it save the output
+	* asynchronously someplace
+	*
+	* \param The function, taking a const reference to the output as parameter
+	*
+	* \note Race conditions may occur if the execution is not paused, the trigger itself is run on the same thread as the loop
+	*/
+	void setOutputTrigger(std::function<void(const Output&)> trigger)
+	{
+		outputTrigger_ = trigger;
 	}
 };
 #endif // STATE_MACHINE_H
