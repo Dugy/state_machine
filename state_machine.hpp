@@ -56,8 +56,8 @@ public:
 	
 	class Timer {
 		long long since_;
-		TimedObject<Input, Output>* parent_;
-		Timer(long long since, TimedObject<Input, Output>* parent) : since_(since), parent_(parent)
+		TimedObject<Input, Output> *parent_;
+		Timer(long long since, TimedObject<Input, Output> *parent) : since_(since), parent_(parent)
 		{
 		}
 		template<typename In, typename Out> friend class TimedObject;
@@ -77,7 +77,7 @@ public:
 		*/
 		long long time()
 		{
-			if (!parent_) return 0;
+			if(!parent_) return 0;
 			return parent_->timeOfLastFreeze_ - since_;
 		}
 		
@@ -116,7 +116,7 @@ public:
 	* \param The input structure, its type is the first template argument
 	* \param The output structure, its type is the second template argument
 	*/
-	virtual void tick(const Input& in, Output& out) = 0;
+	virtual void tick(const Input &in, Output &out) = 0;
 	
 	template<typename In, typename Out> friend class StateMachineManager;
 };
@@ -134,9 +134,9 @@ class StateMachine : public TimedObject<Input, Output> {
 	{
 		TimedObject<Input, Output>::setupTurn(time);
 		stateTimer_ += TimedObject<Input, Output>::timeIncrease_;
-		if (stateChanged_ == StateChangedType::THIS_TICK)
+		if(stateChanged_ == StateChangedType::THIS_TICK)
 			stateChanged_ = StateChangedType::PREVIOUS_TICK;
-		else if (stateChanged_ == StateChangedType::PREVIOUS_TICK)
+		else if(stateChanged_ == StateChangedType::PREVIOUS_TICK)
 			stateChanged_ = StateChangedType::BEFORE;
 	}
 	State state_;
@@ -161,7 +161,7 @@ protected:
 	*/
 	void state(State newState)
 	{
-		if (state_ == newState) return;
+		if(state_ == newState) return;
 		state_ = newState;
 		stateChanged_ = StateChangedType::THIS_TICK;
 		stateTimer_ = 0;
@@ -191,15 +191,15 @@ protected:
 template<typename T>
 class ProtectedReturn {
 	std::function<void()> onRelease_;
-	T* content_;
-	ProtectedReturn(T* content, std::function<void()> onRelease) :
+	T *content_;
+	ProtectedReturn(T *content, std::function<void()> onRelease) :
 		content_(content), onRelease_(onRelease)
 	{
 	}
 	template<typename T2>
-	ProtectedReturn(ProtectedReturn<T2>& ) = delete;
+	ProtectedReturn(const ProtectedReturn<T2> &) = delete;
 	template<typename T2>
-	ProtectedReturn<T>& operator=(ProtectedReturn<T2>& ) = delete;
+	ProtectedReturn<T> &operator=(const ProtectedReturn<T2> &) = delete;
 public:
 	/*!
 	* \brief Destructor, stops deferring the ticks
@@ -212,7 +212,7 @@ public:
 	/*!
 	* \brief Gives access to the structure
 	*/
-	T* operator->()
+	T *operator->()
 	{
 		return content_;
 	}
@@ -220,7 +220,7 @@ public:
 	/*!
 	* \brief Gives access to the const structure
 	*/
-	const T* operator->() const
+	const T *operator->() const
 	{
 		return content_;
 	}
@@ -230,7 +230,7 @@ public:
 	*
 	* \note This is meant to be used to assign into it to replace the whole structure and destroy this object in the following line
 	*/
-	T& operator*()
+	T &operator*()
 	{
 		return *content_;
 	}
@@ -240,7 +240,7 @@ public:
 	*
 	* \note This is meant to be used to assign the whole structure into a copy and destroy this object in the following line
 	*/
-	const T& operator*() const
+	const T &operator*() const
 	{
 		return *content_;
 	}
@@ -251,7 +251,6 @@ public:
 template<typename Input, typename Output>
 class StateMachineManager {
 	std::vector<std::pair<int, std::shared_ptr<TimedObject<Input, Output>>>> machines_;
-	LoopingThread loop_;
 	Input input_;
 	Output output_;
 	int tickOrder_ = 0;
@@ -259,21 +258,23 @@ class StateMachineManager {
 	int paused_;
 	std::mutex inputMutex_;
 	std::mutex outputMutex_;
-	std::function<void(Input&)> inputTrigger_;
-	std::function<void(const Output&)> outputTrigger_;
+	std::mutex pauseMutex_;
+	std::function<void(Input &)> inputTrigger_;
+	std::function<void(const Output &)> outputTrigger_;
+	std::unique_ptr<LoopingThread> loop_;
 	void tick()
 	{
 		Input input;
 		Output output = output_; // It's const in the other thread
-		if (inputTrigger_)
+		if(inputTrigger_)
 			inputTrigger_(input_);
 		{
 			std::unique_lock<std::mutex> lock(inputMutex_);
 			input = input_;
 		}
 		long long start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		for (unsigned int i = 0; i < machines_.size(); i++)
-			if (tickOrder_ % machines_[i].first == 0) {
+		for(unsigned int i = 0; i < machines_.size(); i++)
+			if(tickOrder_ % machines_[i].first == 0) {
 				machines_[i].second->setupTurn(start);
 				machines_[i].second->tick(input, output);
 			}
@@ -282,7 +283,7 @@ class StateMachineManager {
 			std::unique_lock<std::mutex> lock(outputMutex_);
 			output_ = output;
 		}
-		if (outputTrigger_)
+		if(outputTrigger_)
 			outputTrigger_(output_);
 	}
 public:
@@ -297,11 +298,6 @@ public:
 	* \note The execution starts paused, it will have to be unpaused after inserting the contents
 	*/
 	StateMachineManager(Input input, Output output, int basePeriod) :
-		loop_(std::chrono::milliseconds(basePeriod),
-			  [this]()
-	{
-		tick();
-	}, false),
 	input_(input),
 	output_(output),
 	period_(basePeriod),
@@ -331,7 +327,7 @@ public:
 	*/
 	void removeTimedObject(std::shared_ptr<TimedObject<Input, Output>> removed)
 	{
-		std::remove(machines_.begin(), machines_.end(), [&removed] (const std::pair<int, std::shared_ptr<TimedObject<Input, Output>>>& tried) {
+		std::remove(machines_.begin(), machines_.end(), [&removed](const std::pair<int, std::shared_ptr<TimedObject<Input, Output>>> &tried) {
 			return (removed == tried.second);
 		});
 	}
@@ -341,8 +337,9 @@ public:
 	*/
 	void pause()
 	{
-		if (!paused_) {
-			loop_.pause(false);
+		std::lock_guard<std::mutex> lock(pauseMutex_);
+		if(!paused_) {
+			loop_.release();
 			paused_ = 1;
 		}
 		else paused_++;
@@ -355,8 +352,12 @@ public:
 	*/
 	void unpause()
 	{
-		if (paused_ == 1) {
-			loop_.resume();
+		std::lock_guard<std::mutex> lock(pauseMutex_);
+		if(paused_ == 1) {
+			loop_ = std::make_unique<LoopingThread>(std::chrono::milliseconds(period_), [this]()
+			{
+				tick();
+			});
 			paused_ = 0;
 		}
 		else paused_--;
@@ -370,7 +371,7 @@ public:
 	ProtectedReturn<Input> input()
 	{
 		std::shared_ptr<std::unique_lock<std::mutex>> lock = std::make_unique<std::unique_lock<std::mutex>>(inputMutex_);
-		return ProtectedReturn<Input>(&input_, [lock] () { /* Keep a copy of the mutex pointer */ });
+		return ProtectedReturn<Input>(&input_, [lock]() { /* Keep a copy of the mutex pointer */ });
 	}
 	
 	/*!
@@ -381,7 +382,7 @@ public:
 	const ProtectedReturn<Output> output()
 	{
 		std::shared_ptr<std::unique_lock<std::mutex>> lock = std::make_unique<std::unique_lock<std::mutex>>(outputMutex_);
-		return ProtectedReturn<Output>(&output_, [lock] () { /* Keep a copy of the mutex pointer */ });
+		return ProtectedReturn<Output>(&output_, [lock]() { /* Keep a copy of the mutex pointer */ });
 	}
 	
 	/*!
@@ -392,7 +393,7 @@ public:
 	*
 	* \note Race conditions may occur if the execution is not paused, the trigger itself is run on the same thread as the loop
 	*/
-	void setInputTrigger(std::function<void(Input&)> trigger)
+	void setInputTrigger(std::function<void(Input &)> trigger)
 	{
 		inputTrigger_ = trigger;
 	}
@@ -405,7 +406,7 @@ public:
 	*
 	* \note Race conditions may occur if the execution is not paused, the trigger itself is run on the same thread as the loop
 	*/
-	void setOutputTrigger(std::function<void(const Output&)> trigger)
+	void setOutputTrigger(std::function<void(const Output &)> trigger)
 	{
 		outputTrigger_ = trigger;
 	}
